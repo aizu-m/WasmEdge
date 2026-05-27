@@ -51,15 +51,24 @@ SWRAllocSetOpts::body(const Runtime::CallingFrame &Frame, uint32_t SwrCtxPtr,
       FFmpegUtils::SampleFmt::fromSampleID(InSampleFmtId);
 
   AVChannelLayout AVOutChLayout;
-  av_channel_layout_from_mask(&AVOutChLayout, OutChLayout);
+  if (av_channel_layout_from_mask(&AVOutChLayout, OutChLayout) < 0) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
 
   AVChannelLayout AVInChLayout;
-  av_channel_layout_from_mask(&AVInChLayout, InChLayout);
+  if (av_channel_layout_from_mask(&AVInChLayout, InChLayout) < 0) {
+    av_channel_layout_uninit(&AVOutChLayout);
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
 
-  swr_alloc_set_opts2(&ExistSWRContext, &AVOutChLayout, OutSampleFmt,
-                      OutSampleRate, &AVInChLayout, InSampleFmt, InSampleRate,
-                      LogOffset,
-                      nullptr); // Always being used as null in rust sdk.
+  if (swr_alloc_set_opts2(
+          &ExistSWRContext, &AVOutChLayout, OutSampleFmt, OutSampleRate,
+          &AVInChLayout, InSampleFmt, InSampleRate, LogOffset,
+          nullptr) < 0) { // Always being used as null in rust sdk.
+    av_channel_layout_uninit(&AVOutChLayout);
+    av_channel_layout_uninit(&AVInChLayout);
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   CurrSwrCtx = ExistSWRContext;
 
   av_channel_layout_uninit(&AVOutChLayout);

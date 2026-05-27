@@ -61,7 +61,9 @@ AVGetChannelLayoutNbChannels::body(const Runtime::CallingFrame &,
       FFmpegUtils::ChannelLayout::fromChannelLayoutID(ChannelLayoutId);
 
   AVChannelLayout TmpChLayout;
-  av_channel_layout_from_mask(&TmpChLayout, ChannelLayout);
+  if (av_channel_layout_from_mask(&TmpChLayout, ChannelLayout) < 0) {
+    return 0;
+  }
   int32_t ChannelLayoutNbChannels = TmpChLayout.nb_channels;
   av_channel_layout_uninit(&TmpChLayout);
 
@@ -94,9 +96,14 @@ Expect<int32_t> AVGetChannelLayoutName::body(const Runtime::CallingFrame &Frame,
       FFmpegUtils::ChannelLayout::fromChannelLayoutID(ChannelLayoutId);
   char ChName[16] = {0}; // bufsize based on AVChannelCustom.name
   // mask ChannelLayout to AVChannel before passing
-  av_channel_name(ChName, 16, static_cast<AVChannel>(ChannelLayout >> 1));
+  if (av_channel_name(ChName, 16, static_cast<AVChannel>(ChannelLayout >> 1)) <
+      0) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
 
-  std::copy_n(ChName, NameLen, NameBuf.data());
+  auto Actual = std::strlen(ChName);
+  auto N = std::min<uint32_t>(NameLen, static_cast<uint32_t>(Actual + 1));
+  std::copy_n(ChName, N, NameBuf.data());
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -111,6 +118,10 @@ Expect<uint64_t> AVGetDefaultChannelLayout::body(const Runtime::CallingFrame &,
                                                  int32_t Number) {
   AVChannelLayout TmpChLayout;
   av_channel_layout_default(&TmpChLayout, Number);
+  if (TmpChLayout.order != AV_CHANNEL_ORDER_NATIVE) {
+    av_channel_layout_uninit(&TmpChLayout);
+    return 0;
+  }
   uint64_t DefaultChannelLayout =
       FFmpegUtils::ChannelLayout::intoChannelLayoutID(TmpChLayout.u.mask);
   av_channel_layout_uninit(&TmpChLayout);

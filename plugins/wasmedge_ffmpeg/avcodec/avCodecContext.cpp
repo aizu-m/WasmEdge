@@ -119,7 +119,9 @@ AVCodecCtxSetSampleAspectRatio::body(const Runtime::CallingFrame &,
 Expect<uint64_t> AVCodecCtxChannelLayout::body(const Runtime::CallingFrame &,
                                                uint32_t AvCodecCtxId) {
   FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
-  // Deprecated method
+  if (AvCodecCtx->ch_layout.order != AV_CHANNEL_ORDER_NATIVE) {
+    return 0;
+  }
   uint64_t const AvChannel = AvCodecCtx->ch_layout.u.mask;
   return FFmpegUtils::ChannelLayout::intoChannelLayoutID(AvChannel);
 }

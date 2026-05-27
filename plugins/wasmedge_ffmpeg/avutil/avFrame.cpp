@@ -184,6 +184,9 @@ Expect<int32_t> AVFrameSetChannels::body(const Runtime::CallingFrame &,
 Expect<uint64_t> AVFrameChannelLayout::body(const Runtime::CallingFrame &,
                                             uint32_t FrameId) {
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  if (AvFrame->ch_layout.order != AV_CHANNEL_ORDER_NATIVE) {
+    return 0;
+  }
   uint64_t const ChannelLayout = AvFrame->ch_layout.u.mask;
   return FFmpegUtils::ChannelLayout::intoChannelLayoutID(ChannelLayout);
 }

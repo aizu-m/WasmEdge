@@ -67,6 +67,10 @@ SWRAllocSetOpts::body(const Runtime::CallingFrame &Frame, uint32_t SwrCtxPtr,
           nullptr) < 0) { // Always being used as null in rust sdk.
     av_channel_layout_uninit(&AVOutChLayout);
     av_channel_layout_uninit(&AVInChLayout);
+    if (SWRContextId != 0) {
+      FFMPEG_PTR_DELETE(SWRContextId);
+    }
+    *SwrCtxId = 0;
     return static_cast<int32_t>(ErrNo::InternalError);
   }
   CurrSwrCtx = ExistSWRContext;
